@@ -142,7 +142,7 @@ while ~convergenced
     % update Z_i
     Zk=Z;
     for i=1:k
-        Z{i}=reshape(ZZ(i,:),dn,n)';
+        Z{i}=reshape(ZZ(i,:),n,dn)';
         % Z{i}=Z{i}-diag(diag(Z{i}));
         % Z{i}=max(Z{i},0);
 
@@ -196,7 +196,7 @@ toc;
 
 function [S,svp] = updateS(xtx,dtx,dtd,X,D,E,Y1,Z,S,Y3,eta1,mu)   %S alias Z  due to eta1 mu
     whos('dtx','dtd','S','D','E','Y1','Z') 
-    T=-mu*(dtx-dtd*S-D'*E+D'*Y1/mu+Z-S+Y3/mu);
+    T=-mu*(dtx-dtd*S-D'*E+D'*Y1/mu+Z'-S+Y3/mu);
     %T=-mu*(xtx-xtx*S-X'*E+X'*Y1/mu+Z-S+Y3/mu);
     % argmin_{S} 1/(mu*eta1)||S||_*+1/2*||S-S_k+T/(mu*eta1)||_F^2
     [S,svp]=singular_value_shrinkage(S-T/(mu*eta1),1/(mu*eta1)); % TODO: sometimes PROPACK is slower than full svd, and sometimes it will throw the following error
