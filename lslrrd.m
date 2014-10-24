@@ -195,8 +195,8 @@ end
 toc;
 
 function [S,svp] = updateS(xtx,dtx,dtd,X,D,E,Y1,Z,S,Y3,eta1,mu)   %S alias Z  due to eta1 mu
-    whos('dtx','dtd','S','D','E','Y1','Z') 
-    T=-mu*(dtx-dtd*S-D'*E+D'*Y1/mu+Z'-S+Y3/mu);
+    %whos('dtx','dtd','S','D','E','Y1','Z') 
+    T=-mu*(dtx-dtd*S-D'*E+D'*Y1/mu+Z-S+Y3/mu);
     %T=-mu*(xtx-xtx*S-X'*E+X'*Y1/mu+Z-S+Y3/mu);
     % argmin_{S} 1/(mu*eta1)||S||_*+1/2*||S-S_k+T/(mu*eta1)||_F^2
     [S,svp]=singular_value_shrinkage(S-T/(mu*eta1),1/(mu*eta1)); % TODO: sometimes PROPACK is slower than full svd, and sometimes it will throw the following error
@@ -232,13 +232,13 @@ function [E] = updateE(X,D,S,E,Y1,mu,lambda)   %E is err E and S is coefficent Z
 
 function [Xv,Xc,ZJv,ZJc,ZSv,ZSc,Zc,Jc,Sc,Ec,Cmax] = caculateTempVars(X,D,S,E,Z,J,Zk,Jk,Sk,Ek,Xf,eta1,mu)
     Xc=X-D*S-E; 
-    ZJc=Z'-J;
-    ZSc=Z'-S;
+    ZJc=Z-J;
+    ZSc=Z-S;
     Xv=norm(Xc,'fro')/Xf;
     ZJv=norm(ZJc,'fro')/Xf;
     ZSv=norm(ZSc,'fro')/Xf;
 
-    Zc=norm(Z'-Zk,'fro')/Xf;
+    Zc=norm(Z-Zk,'fro')/Xf;
     Jc=norm(J-Jk,'fro')/Xf;
     Sc=norm(S-Sk,'fro')/Xf;
     Ec=norm(E-Ek,'fro')/Xf;
