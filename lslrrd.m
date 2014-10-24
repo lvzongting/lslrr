@@ -152,7 +152,6 @@ while ~convergenced
     % update E_i
     Ek=E;
     [E]=cellfun(@updateE,X,D,S,E,Y1,cmu,clambda,'UniformOutput',false);
-
     % parameter update rule
 
     % check convergence
@@ -191,7 +190,6 @@ while ~convergenced
     % save_matrix(J,S,Z,iter);
     iter=iter+1;
 end
-
 toc;
 
 function [S,svp] = updateS(xtx,dtx,dtd,X,D,E,Y1,Z,S,Y3,eta1,mu)   %S alias Z  due to eta1 mu
