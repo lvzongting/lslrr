@@ -4,7 +4,7 @@ Q{1}=tr_label;
 %LRR without label
 %[Z,ZZ,E]=multi_NNLRS(X,0.5,1,0);
 %LRR with label
-[Z,ZZ,E]=lslrr(X,Q,16,15,560);
+[Z,ZZ,E]=lslrr(X,Q,1,1,1);
 
 save('Z.mat');
 
