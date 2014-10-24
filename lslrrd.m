@@ -1,4 +1,4 @@
-function [Z,ZZ,E] = lslrr(X,D,L,lambda,beta,alphaQ)
+function [Z,ZZ,E] = lslrr(X,D,X_L,D_L,lambda,beta,alphaQ)
 % solve \sum_{i=1}^k(||Z_i||_*+lambda||E_i||_{2,1}+beta||Z_i||_1+alphaQ||Z-Q||_{2,1})
 %% solve multi_NNLRS\sum_{i=1}^k(||Z_i||_*+beta||Z_i||_1+lambda||E_i||_{2,1})+alpha||ZZ||_{2,1}
 
@@ -7,26 +7,27 @@ tic;
 % init vars
 k=length(X);
 [m,n]=size(X{1});
+[dm,dn]=size(D{1});
 
 %%%%%%%%
 alpha=0;
 %%%%%%%%
 Z=cell(k,1);
-Z(1:k)={zeros(n)};
+Z(1:k)={zeros(dn,n)};
 E=cell(k,1);
 E(1:k)={zeros(m,n)};
 Q=cell(k,1);
-Q(1:k)={zeros(n)};
+Q(1:k)={zeros(dn,n)};
 S=cell(k,1);
-S(1:k)={zeros(n)};
+S(1:k)={zeros(dn,n)};
 J=cell(k,1);
-J(1:k)={zeros(n)};
+J(1:k)={zeros(dn,n)};
 Y1=cell(k,1);
 Y1(1:k)={zeros(m,n)};
 Y2=cell(k,1);
-Y2(1:k)={zeros(n)};
+Y2(1:k)={zeros(dn,n)};
 Y3=cell(k,1);
-Y3(1:k)={zeros(n)};
+Y3(1:k)={zeros(dn,n)};
 Zk=Z;
 Ek=E;
 Sk=S;
@@ -34,7 +35,7 @@ Jk=J;
 svp=cell(k,1);
 svp(1:k)={0};
 F=Z;
-ZZ=zeros(k,n*n);
+ZZ=zeros(k,dn*n);
 
 % precomputed values
 xtx=cell(k,1);
@@ -89,7 +90,7 @@ cbeta(1:k)={beta};
 calphaQ(1:k)={alphaQ};
 
 %%%%%%%%%%%%%
-[Q]=cellfun(@generateQ,L,'UniformOutput',false);
+[Q]=cellfun(@generateQ,D_L,X_L,'UniformOutput',false);
 save('Q.mat','Q');
 %error('QQQQQ!!!!!!!!!!!!');
 %%%%%%%%%%%%%
@@ -103,7 +104,7 @@ while ~convergenced
     cmu(1:k)={mu};
     % update S_i
     Sk=S;
-    [S, svp]=cellfun(@updateS,xtx,X,E,Y1,Z,S,Y3,eta1,cmu,'UniformOutput',false);
+    [S, svp]=cellfun(@updateS,xtx,dtx,dtd,X,D,E,Y1,Z,S,Y3,eta1,cmu,'UniformOutput',false);
 	% for i=1:k
 		% fprintf(1,'S{%d}, max: %f, min: %f\n',i,max(max(S{i})),min(min(S{i})));
 	% end
@@ -126,7 +127,7 @@ while ~convergenced
     % save_matrix;
         
     [M]=cellfun(@updateM,F,'UniformOutput',false);
-    MM=zeros(k,n*n);
+    MM=zeros(k,dn*n);
     for i=1:k
 		% TODO: normalize
 		% fprintf(1,'M{%d}, max: %f, min: %f\n',i,max(max(M{i})),min(min(M{i})));
@@ -141,7 +142,7 @@ while ~convergenced
     % update Z_i
     Zk=Z;
     for i=1:k
-        Z{i}=reshape(ZZ(i,:),n,n)';
+        Z{i}=reshape(ZZ(i,:),dn,n)';
         % Z{i}=Z{i}-diag(diag(Z{i}));
         % Z{i}=max(Z{i},0);
 
@@ -150,12 +151,12 @@ while ~convergenced
     end
     % update E_i
     Ek=E;
-    [E]=cellfun(@updateE,X,S,E,Y1,cmu,clambda,'UniformOutput',false);
+    [E]=cellfun(@updateE,X,D,S,E,Y1,cmu,clambda,'UniformOutput',false);
 
     % parameter update rule
 
     % check convergence
-    [Xv,Xc,ZJv,ZJc,ZSv,ZSc,Zc,Jc,Sc,Ec,Cmax] = cellfun(@caculateTempVars,X,S,E,Z,J,Zk,Jk,Sk,Ek,Xf,eta1,cmu,'UniformOutput',false);
+    [Xv,Xc,ZJv,ZJc,ZSv,ZSc,Zc,Jc,Sc,Ec,Cmax] = cellfun(@caculateTempVars,X,D,S,E,Z,J,Zk,Jk,Sk,Ek,Xf,eta1,cmu,'UniformOutput',false);
     changeX=max([Xv{:}]);
     changeZJ=max([ZJv{:}]);
     changeZS=max([ZSv{:}]);
@@ -193,7 +194,8 @@ end
 
 toc;
 
-function [S,svp] = updateS(xtx,X,E,Y1,Z,S,Y3,eta1,mu)   %S alias Z  due to eta1 mu
+function [S,svp] = updateS(xtx,dtx,dtd,X,D,E,Y1,Z,S,Y3,eta1,mu)   %S alias Z  due to eta1 mu
+    whos('dtx','dtd','S','D','E','Y1','Z') 
     T=-mu*(dtx-dtd*S-D'*E+D'*Y1/mu+Z-S+Y3/mu);
     %T=-mu*(xtx-xtx*S-X'*E+X'*Y1/mu+Z-S+Y3/mu);
     % argmin_{S} 1/(mu*eta1)||S||_*+1/2*||S-S_k+T/(mu*eta1)||_F^2
@@ -203,6 +205,7 @@ function [S,svp] = updateS(xtx,X,E,Y1,Z,S,Y3,eta1,mu)   %S alias Z  due to eta1 
 
 function [J] = updateJ(Z,Q,J,Y2,mu,beta,alphaQ)  %J alias W due to beta mu
     %J=wthresh(Z+Y2/mu,'s',beta/mu);      
+    %whos('Z','Y2','Q','D','E','Z','Y1','Y3')
     J=wthresh(Z*(mu/(2*alphaQ+mu))+Y2/(2*alphaQ+mu)+Q*(2*alphaQ/(2*alphaQ+mu)),'s',beta/(2*alphaQ+mu));     %lzt  add Q here !!!!!!  
     % J=J-diag(diag(J));
     % J=max(J,0);
@@ -212,26 +215,30 @@ function [F] = updateF(J,Y2,S,Y3,mu) % new add for multi-task
     F=0.5*(J-Y2/mu+S-Y3/mu);
 
 function [M] = updateM(F)
-    n=length(F);
-    M=reshape(F',1,n*n);
+    [m,n]=size(F);
+    %n=length(F);
+    M=reshape(F',1,m*n);
 
-function [Q] = generateQ(L)
-    tr_num=length(L);
-    LL=repmat(L,1,tr_num);
-    Q=xor((LL-LL'),ones(tr_num,tr_num));
+function [Q] = generateQ(D_L,X_L)
+    Qm=length(D_L);
+    Qn=length(X_L);
+    %whos('D_L','X_L','Qn','Qm')
+    mL=repmat(D_L,1,Qn);
+    nL=repmat(X_L',Qm,1);
+    Q=xor((mL-nL),ones(Qm,Qn));
 
-function [E] = updateE(X,S,E,Y1,mu,lambda)   %E is err E and S is coefficent Z and X is dict A
+function [E] = updateE(X,D,S,E,Y1,mu,lambda)   %E is err E and S is coefficent Z and X is dict A
     E=l21(X-D*S+Y1/mu,lambda/mu); % TODO: -E not E  add dict D here!!
 
-function [Xv,Xc,ZJv,ZJc,ZSv,ZSc,Zc,Jc,Sc,Ec,Cmax] = caculateTempVars(X,S,E,Z,J,Zk,Jk,Sk,Ek,Xf,eta1,mu)
-    Xc=X-X*S-E; 
-    ZJc=Z-J;
-    ZSc=Z-S;
+function [Xv,Xc,ZJv,ZJc,ZSv,ZSc,Zc,Jc,Sc,Ec,Cmax] = caculateTempVars(X,D,S,E,Z,J,Zk,Jk,Sk,Ek,Xf,eta1,mu)
+    Xc=X-D*S-E; 
+    ZJc=Z'-J;
+    ZSc=Z'-S;
     Xv=norm(Xc,'fro')/Xf;
     ZJv=norm(ZJc,'fro')/Xf;
     ZSv=norm(ZSc,'fro')/Xf;
 
-    Zc=norm(Z-Zk,'fro')/Xf;
+    Zc=norm(Z'-Zk,'fro')/Xf;
     Jc=norm(J-Jk,'fro')/Xf;
     Sc=norm(S-Sk,'fro')/Xf;
     Ec=norm(E-Ek,'fro')/Xf;
